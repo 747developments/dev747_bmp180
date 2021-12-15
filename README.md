@@ -21,7 +21,7 @@ sudo apt-get install python3-smbus python3-dev i2c-tools
 Exaple configuration.yaml file:
 ```ruby
 sensor:
-  - platform: dev747_AM2320
+  - platform: dev747_BMP180
     i2c_address: 0x77
     i2c_bus_num: 1
     name: "BMP180"
