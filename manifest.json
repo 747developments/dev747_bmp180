@@ -1,0 +1,10 @@
+{
+  "domain": "dev747_BMP180",
+  "name": "DEV 747 BMP180",
+  "codeowners": ["Radek Reznicek - 747Developments"],
+  "dependencies": [],
+  "documentation": "Doc",
+  "requirements": [],
+  "iot_class": "local_polling",
+  "version": "1.0.0"
+}
