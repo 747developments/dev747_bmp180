@@ -1,6 +1,5 @@
 from __future__ import annotations
-
-__version__ = '1.0.0'
+"Driver for Home Assistant to handle BMP180 sensor"
 
 import logging
 import os
@@ -26,59 +25,35 @@ from homeassistant.const import (
     CONF_MONITORED_CONDITIONS
 )
 
-DEF_SEA_LEVEL_PRESSURE = 101325.0
-
-# Operating Modes
-BMP085_ULTRALOWPOWER     = 0
-BMP085_STANDARD          = 1
-BMP085_HIGHRES           = 2
-BMP085_ULTRAHIGHRES      = 3
-
-# BMP180 registers
-CONTROL_REG = 0xF4
-DATA_REG = 0xF6
-
-# Calibration data registers
-CAL_AC1_REG = 0xAA
-CAL_AC2_REG = 0xAC
-CAL_AC3_REG = 0xAE
-CAL_AC4_REG = 0xB0
-CAL_AC5_REG = 0xB2
-CAL_AC6_REG = 0xB4
-CAL_B1_REG = 0xB6
-CAL_B2_REG = 0xB8
-CAL_MB_REG = 0xBA
-CAL_MC_REG = 0xBC
-CAL_MD_REG = 0xBE
-
-# Calibration data variables
-calAC1 = 0
-calAC2 = 0
-calAC3 = 0
-calAC4 = 0
-calAC5 = 0
-calAC6 = 0
-calB1 = 0
-calB2 = 0
-calMB = 0
-calMC = 0
-calMD = 0
+from .const import (
+    DEF_SEA_LEVEL_PRESSURE,
+    BMP085_ULTRALOWPOWER,
+    BMP085_STANDARD,
+    BMP085_HIGHRES,
+    BMP085_ULTRAHIGHRES,
+    CONTROL_REG,
+    DATA_REG,
+    CAL_AC1_REG,
+    CAL_AC2_REG,
+    CAL_AC3_REG,
+    CAL_AC4_REG,
+    CAL_AC5_REG,
+    CAL_AC6_REG,
+    CAL_B1_REG,
+    CAL_B2_REG,
+    CAL_MB_REG,
+    CAL_MC_REG,
+    CAL_MD_REG,
+    DEFAULT_NAME,
+    SENSOR_TEMP,
+    SENSOR_PRESS,
+    SENSOR_ALT,
+    _SENSOR_TYPES,
+    DEFAULT_I2C_ADDRESS,
+    DEFAULT_I2C_BUS
+)
 
 
-DOMAIN                  = "dev_747_bmp180"
-DEFAULT_NAME            = "I2C Sensor"
-SENSOR_TEMP             = "temperature"
-SENSOR_PRESS            = "pressure"
-SENSOR_ALT              = "altitude"
-
-_SENSOR_TYPES = {
-    "temperature":  ("Temperature",     "",     "mdi:thermometer",      "°C"),
-    "pressure":     ("Pressure",        "",     "mdi:gauge",            "Pa"),
-    "altitude":     ("Altitude",        "",     "mdi:image-filter-hdr", "m"),
-}
-
-DEFAULT_I2C_ADDRESS     = "0x77"
-DEFAULT_I2C_BUS         = 1
 
 CONF_I2C_ADDRESS        = "i2c_address"
 CONF_I2C_BUS_NUM        = "i2c_bus_num"
@@ -100,24 +75,23 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the sensor platform."""
 
-    # if discovery_info is None:
-        # return
     i2c_address = config.get(CONF_I2C_ADDRESS)
     i2c_bus_num = config.get(CONF_I2C_BUS_NUM)
     name = config.get(CONF_NAME)
     mode = config.get(CONF_MODE)
-    #_LOGGER.warning(config[CONF_MONITORED_CONDITIONS])
     for monitored_condition in config[CONF_MONITORED_CONDITIONS]:
         async_add_entities([BMP180(name, i2c_address, i2c_bus_num, monitored_condition, mode)])
+        time.sleep(0.001)
 
 class BMP180(SensorEntity):
-
+    """BMP180."""
     def __init__(self, name, i2c_address, i2c_bus_num, monitored_condition, mode):
         """Initialize the sensor."""
         self._monitored_condition = monitored_condition
         self._name = name
         self._state = None
         self.raw_data = None
+        self.non_receive_counter = 0
  
         self._i2c_bus_num = i2c_bus_num
         self._i2c_address = i2c_address        
@@ -188,7 +162,7 @@ class BMP180(SensorEntity):
         self._i2c_bus.write_byte_data(self._i2c_address, CONTROL_REG, 0x2E)
 
         # Wait 4,5 ms
-        time.sleep(0.05)
+        time.sleep(0.01)
 
         # Read the raw data from the DATA_REG, 0xF6
         raw_data = self.read_unsigned_16_bit(DATA_REG)
@@ -277,17 +251,24 @@ class BMP180(SensorEntity):
         return round(altitude, 1)
     
     def get_data(self):
-        
+        """Get data from ensor."""
         try:   
-            #_LOGGER.warning(self._monitored_condition == SENSOR_TEMP)
             if self._monitored_condition == SENSOR_TEMP:                
                 self._state = self.get_temp()               
             elif self._monitored_condition == SENSOR_PRESS:              
                 self._state = self.get_pressure()
             elif self._monitored_condition == SENSOR_ALT:  
-                self._state = self.get_altitude()    
+                self._state = self.get_altitude()   
+
+            self.non_receive_counter = 0
+            
         except Exception as ex:
-            _LOGGER.error("Error retrieving BMP180 data: %s" % (ex))
+            self.non_receive_counter += 1
+            if(self.non_receive_counter >= 10):
+                _LOGGER.error("Error retrieving BMP180 data %d - %s-%s: %s" % (self.non_receive_counter, self._name, self._monitored_condition, ex))
+                self.non_receive_counter = 0
+                self._state = None
+            time.sleep(0.1)
        
     @property
     def name(self):
