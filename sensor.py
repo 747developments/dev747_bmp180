@@ -72,7 +72,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         ),
 })
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the sensor platform."""
 
     i2c_address = config.get(CONF_I2C_ADDRESS)
@@ -80,7 +80,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     name = config.get(CONF_NAME)
     mode = config.get(CONF_MODE)
     for monitored_condition in config[CONF_MONITORED_CONDITIONS]:
-        async_add_entities([BMP180(name, i2c_address, i2c_bus_num, monitored_condition, mode)])
+        add_entities([BMP180(name, i2c_address, i2c_bus_num, monitored_condition, mode)])
         time.sleep(0.001)
 
 class BMP180(SensorEntity):
@@ -285,7 +285,7 @@ class BMP180(SensorEntity):
         """Return the icon to use in the frontend."""
         return _SENSOR_TYPES[self._monitored_condition][2]
 
-    async def async_update(self):
+    def update(self):
         self.get_data()
 
     @property
